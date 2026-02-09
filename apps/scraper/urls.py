@@ -10,6 +10,8 @@ urlpatterns = [
     
     # Trigger new scrape
     path("trigger/", views.ScrapeTriggerView.as_view(), name="trigger"),
+    # Copy scrape job
+    path("jobs/<int:pk>/copy/", views.ScrapeJobCopyView.as_view(), name="job_copy"),
     
     # Job detail and logs
     path("jobs/<int:pk>/", views.ScrapeJobDetailView.as_view(), name="job_detail"),

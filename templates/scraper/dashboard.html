@@ -126,6 +126,9 @@
               <a href="{% url 'scraper:job_detail' job.pk %}" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-eye"></i> View
               </a>
+              <a href="{% url 'scraper:job_copy' job.pk %}" class="btn btn-sm btn-outline-secondary" title="Copy this job">
+                <i class="bi bi-files"></i> Copy
+              </a>
             </div>
           </td>
         </tr>

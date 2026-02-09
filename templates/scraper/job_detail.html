@@ -60,15 +60,39 @@
     </div>
   </div>
 </div>
+
 {% elif job.status == 'failed' %}
 <div class="card mb-4 border-danger">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center">
-      <h6 class="mb-0"><i class="bi bi-exclamation-circle text-danger me-2"></i><strong>Scrape Failed</strong></h6>
+      <h6 class="mb-0">
+        <span data-bs-toggle="tooltip" data-bs-placement="right" title="{{ job.error_message|default:'Unknown error' }}{% if job.error_url %} | URL: {{ job.error_url }}{% endif %}">
+          <i class="bi bi-exclamation-circle text-danger me-2"></i>
+        </span>
+        <strong>Scrape Failed</strong>
+      </h6>
       <span class="badge bg-danger">Failed</span>
     </div>
+    {% if job.error_message %}
+    <div class="mt-2">
+      <small class="text-danger">Error: {{ job.error_message }}</small>
+    </div>
+    {% endif %}
+    {% if job.error_url %}
+    <div class="mt-1">
+      <small class="text-muted">URL: <a href="{{ job.error_url }}" target="_blank">{{ job.error_url }}</a></small>
+    </div>
+    {% endif %}
   </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+    new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+});
+</script>
 {% endif %}
 
 <div class="row mb-4">
