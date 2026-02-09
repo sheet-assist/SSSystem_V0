@@ -119,14 +119,29 @@ def run_scrape_job(job):
     
     try:
         scraper = RealtdmScraper(job)
+        
+        # Initialize progress
+        job.update_progress(0, 0, "Scraping auction data...")
+        
         prospects_data = scraper.scrape_date(job.target_date)
+        total_prospects = len(prospects_data)
+        
+        if total_prospects == 0:
+            job.status = 'completed'
+            job.update_progress(0, 0, "No auctions found for this date")
+            job.completed_at = timezone.now()
+            job.save()
+            scraper.log('info', f'No auctions found for date {job.target_date}')
+            return
+        
+        job.update_progress(0, total_prospects, f"Processing {total_prospects} prospects...")
         
         created = 0
         updated = 0
         qualified = 0
         disqualified = 0
         
-        for prospect_data in prospects_data:
+        for idx, prospect_data in enumerate(prospects_data, 1):
             try:
                 county = job.county
                 
@@ -155,7 +170,7 @@ def run_scrape_job(job):
                 
                 # Evaluate qualification
                 qualification_result = evaluate_prospect(prospect_data, county)
-                if qualification_result:
+                if qualification_result.get('qualified'):
                     prospect_obj.qualification_status = 'qualified'
                     qualified += 1
                 else:
@@ -164,8 +179,16 @@ def run_scrape_job(job):
                 
                 prospect_obj.save()
                 
+                # Update progress
+                job.update_progress(
+                    idx, 
+                    total_prospects, 
+                    f"Processing prospect {idx}/{total_prospects}: {prospect_data.get('case_number')}"
+                )
+                
             except Exception as e:
                 scraper.log('error', f'Failed to save prospect {prospect_data.get("case_number")}: {str(e)}')
+                job.update_progress(idx, total_prospects, f"Error processing prospect {idx}/{total_prospects}")
         
         # Update job results
         job.status = 'completed'
@@ -173,6 +196,8 @@ def run_scrape_job(job):
         job.prospects_updated = updated
         job.prospects_qualified = qualified
         job.prospects_disqualified = disqualified
+        job.progress_percent = 100
+        job.progress_message = f"Completed: {created} created, {updated} updated, {qualified} qualified"
         job.completed_at = timezone.now()
         job.save()
         
@@ -181,6 +206,7 @@ def run_scrape_job(job):
     except Exception as e:
         job.status = 'failed'
         job.error_message = str(e)
+        job.progress_message = "Scrape failed"
         job.completed_at = timezone.now()
         job.save()
         

@@ -1,28 +1,22 @@
 {% extends "base.html" %}
 
-{% block title %}Convert Prospect to Case{% endblock %}
+{% block title %}Trigger New Scrape{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'prospects:detail' prospect.pk %}">{{ prospect.case_number }}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Convert to Case</li>
+    <li class="breadcrumb-item"><a href="{% url 'scraper:dashboard' %}">Scraper</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Trigger New Scrape</li>
   </ol>
 </nav>
 
 <div class="row justify-content-center">
-  <div class="col-lg-8">
+  <div class="col-lg-6">
     <div class="card">
       <div class="card-header fw-semibold">
-        <i class="bi bi-box-arrow-in-right me-1"></i> Convert Prospect to Case
+        <i class="bi bi-play-circle me-1"></i> Trigger New Scrape Job
       </div>
       <div class="card-body">
-        <div class="alert alert-info mb-4">
-          <strong>Prospect:</strong> {{ prospect.case_number }}<br>
-          <strong>Type:</strong> {{ prospect.get_prospect_type_display }}<br>
-          <strong>County:</strong> {{ prospect.county.name }}, {{ prospect.county.state.abbreviation }}
-        </div>
-
         <form method="post">
           {% csrf_token %}
           {% for field in form %}
@@ -40,13 +34,17 @@
           </div>
           {% endfor %}
           <div class="d-flex justify-content-end gap-2">
-            <a href="{% url 'prospects:detail' prospect.pk %}" class="btn btn-outline-secondary">Cancel</a>
-            <button class="btn btn-success" type="submit">
-              <i class="bi bi-check-lg"></i> Create Case
+            <a href="{% url 'scraper:dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+            <button class="btn btn-primary" type="submit">
+              <i class="bi bi-play-circle"></i> Create Scrape Job
             </button>
           </div>
         </form>
       </div>
+    </div>
+
+    <div class="alert alert-info mt-3">
+      <strong>Note:</strong> The scrape job will be created in pending status. You can run it manually or integrate with your task queue (Celery) for async execution.
     </div>
   </div>
 </div>

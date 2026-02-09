@@ -30,6 +30,9 @@ class Case(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ["-created_at"]
+
     def __str__(self):
         return f"Case {self.case_number or self.pk} ({self.case_type})"
 
@@ -42,6 +45,10 @@ class CaseNote(models.Model):
     author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"Note by {self.author} on {self.case}"
@@ -54,21 +61,47 @@ class CaseFollowUp(models.Model):
     description = models.TextField()
     is_completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["due_date"]
 
     def __str__(self):
         return f"FollowUp {self.case} due {self.due_date}"
 
 
 class CaseActionLog(models.Model):
+    ACTION_TYPES = [
+        ("created", "Created"),
+        ("updated", "Updated"),
+        ("status_changed", "Status Changed"),
+        ("note_added", "Note Added"),
+        ("followup_added", "Follow-up Added"),
+        ("followup_completed", "Follow-up Completed"),
+        ("converted_from_prospect", "Converted from Prospect"),
+    ]
+
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='action_logs')
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    action_type = models.CharField(max_length=64)
-    description = models.TextField(blank=True)
+    action_type = models.CharField(max_length=64, choices=ACTION_TYPES)
+    description = models.TextField(blank=True, default="")
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ('-created_at',)
+        ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.action_type} on {self.case}"
+        return f"{self.get_action_type_display()} on {self.case.case_number}"
+
+
+def log_case_action(case, user, action_type, description="", metadata=None):
+    """Utility to log a case action."""
+    return CaseActionLog.objects.create(
+        case=case,
+        user=user,
+        action_type=action_type,
+        description=description,
+        metadata=metadata or {},
+    )

@@ -1,17 +1,253 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+
+{% block title %}Case {{ object.case_number }}{% endblock %}
+
 {% block content %}
-  <h2>Case {{ case.case_number }}</h2>
-  <p><strong>Type:</strong> {{ case.case_type }}</p>
-  <p><strong>Property:</strong> {{ case.property_address }}</p>
-  <p><strong>County:</strong> {{ case.county }}</p>
-  <p><strong>Status:</strong> {{ case.status }}</p>
-  <hr/>
-  <h4>Notes</h4>
-  <ul>
-    {% for note in case.notes.all %}
-      <li>{{ note.created_at }} - {{ note.content }} (by {{ note.author }})</li>
-    {% empty %}
-      <li>No notes yet.</li>
-    {% endfor %}
-  </ul>
+{# Breadcrumb #}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'cases:list' %}">Cases</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ object.case_number|default:object.pk }}</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0">Case {{ object.case_number|default:object.pk }}</h2>
+    <small class="text-muted">From Prospect: {{ object.prospect.case_number }}</small>
+  </div>
+  <span class="badge fs-6
+    {% if object.status == 'active' %}bg-success
+    {% elif object.status == 'monitoring' %}bg-info text-dark
+    {% elif object.status == 'follow_up' %}bg-warning text-dark
+    {% elif object.status == 'closed_won' %}bg-success
+    {% elif object.status == 'closed_lost' %}bg-danger
+    {% else %}bg-light text-dark{% endif %}">
+    {{ object.get_status_display }}
+  </span>
+</div>
+
+{# Action Buttons #}
+<div class="mb-4">
+  <a href="{% url 'cases:status_update' object.pk %}" class="btn btn-outline-primary btn-sm me-1">
+    <i class="bi bi-arrow-repeat"></i> Update Status
+  </a>
+  <a href="{% url 'cases:note_add' object.pk %}" class="btn btn-outline-secondary btn-sm me-1">
+    <i class="bi bi-sticky"></i> Add Note
+  </a>
+  <a href="{% url 'cases:followup_add' object.pk %}" class="btn btn-outline-info btn-sm me-1">
+    <i class="bi bi-calendar-check"></i> Add Follow-up
+  </a>
+  <a href="{% url 'cases:history' object.pk %}" class="btn btn-outline-dark btn-sm">
+    <i class="bi bi-clock-history"></i> History
+  </a>
+</div>
+
+<div class="row">
+  {# Left Column #}
+  <div class="col-lg-8">
+
+    {# Case Info Card #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-file-text me-1"></i> Case Information</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <p class="mb-1"><strong>Case Type:</strong> 
+              {% if object.case_type == 'TD' %}
+                <span class="badge bg-info text-dark">Tax Deed</span>
+              {% elif object.case_type == 'TL' %}
+                <span class="badge bg-warning text-dark">Tax Lien</span>
+              {% elif object.case_type == 'SS' %}
+                <span class="badge bg-secondary">Sheriff Sale</span>
+              {% elif object.case_type == 'MF' %}
+                <span class="badge bg-danger">Mortgage Foreclosure</span>
+              {% else %}
+                <span class="badge bg-light text-dark">{{ object.case_type }}</span>
+              {% endif %}
+            </p>
+            <p class="mb-1"><strong>Case Number:</strong> {{ object.case_number|default:"-" }}</p>
+          </div>
+          <div class="col-sm-6">
+            <p class="mb-1"><strong>Status:</strong> <span class="badge bg-primary">{{ object.get_status_display }}</span></p>
+            <p class="mb-1"><strong>Parcel ID:</strong> {{ object.parcel_id|default:"-" }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Property Card #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-house me-1"></i> Property</div>
+      <div class="card-body">
+        <p class="mb-1"><strong>Address:</strong> {{ object.property_address|default:"-" }}</p>
+        <p class="mb-1"><strong>County:</strong> {{ object.county.name|default:"-" }}, {{ object.county.state.abbreviation|default:"-" }}</p>
+      </div>
+    </div>
+
+    {# Contract Card #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-file-earmark-check me-1"></i> Contract</div>
+      <div class="card-body">
+        <p class="mb-1"><strong>Contract Date:</strong> 
+          {% if object.contract_date %}
+            {{ object.contract_date|date:"F j, Y" }}
+          {% else %}
+            <em class="text-muted">Not set</em>
+          {% endif %}
+        </p>
+        {% if object.contract_notes %}
+        <div class="mt-2">
+          <strong>Notes:</strong>
+          <p class="mt-1 text-break">{{ object.contract_notes }}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Assignment Card #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-person me-1"></i> Assignment</div>
+      <div class="card-body">
+        <p class="mb-0"><strong>Assigned To:</strong> 
+          {% if object.assigned_to %}
+            <a href="{% url 'accounts:profile' %}">{{ object.assigned_to.get_full_name|default:object.assigned_to.username }}</a>
+          {% else %}
+            <span class="text-muted">Unassigned</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    {# Notes Section #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-sticky me-1"></i> Notes ({{ notes|length }})
+      </div>
+      <div class="card-body">
+        {% if notes %}
+          {% for note in notes %}
+          <div class="border-bottom pb-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <strong>{{ note.author.get_full_name|default:note.author.username }}</strong>
+                <br>
+                <small class="text-muted">{{ note.created_at|date:"F j, Y g:i a" }}</small>
+              </div>
+            </div>
+            <p class="mb-0 text-break">{{ note.content }}</p>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted mb-0">No notes yet.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Follow-ups Section #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-calendar-check me-1"></i> Follow-ups ({{ followups|length }})
+      </div>
+      <div class="card-body">
+        {% if followups %}
+          {% for followup in followups %}
+          <div class="border-bottom pb-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="flex-grow-1">
+                <p class="mb-1">
+                  <strong>Due: {{ followup.due_date|date:"F j, Y" }}</strong>
+                  {% if not followup.is_completed %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  {% else %}
+                    <span class="badge bg-success">Completed</span>
+                  {% endif %}
+                </p>
+                <p class="mb-1 text-break">{{ followup.description }}</p>
+                {% if followup.assigned_to %}
+                <p class="mb-0">
+                  <small class="text-muted">Assigned to: {{ followup.assigned_to.get_full_name|default:followup.assigned_to.username }}</small>
+                </p>
+                {% endif %}
+              </div>
+              {% if not followup.is_completed %}
+              <form method="post" action="{% url 'cases:followup_complete' object.pk followup.pk %}" class="ms-2">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success">
+                  <i class="bi bi-check-lg"></i> Complete
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted mb-0">No follow-ups scheduled.</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  {# Right Column #}
+  <div class="col-lg-4">
+
+    {# Source Prospect Card #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-link-45deg me-1"></i> Source Prospect</div>
+      <div class="card-body">
+        <p class="mb-2">
+          <strong>Case #:</strong> {{ object.prospect.case_number }}<br>
+          <strong>Type:</strong> 
+          <span class="badge bg-info text-dark">{{ object.prospect.get_prospect_type_display }}</span>
+        </p>
+        <a href="{% url 'prospects:detail' object.prospect.pk %}" class="btn btn-sm btn-outline-primary w-100">
+          <i class="bi bi-arrow-up-right"></i> View Prospect
+        </a>
+      </div>
+    </div>
+
+    {# Key Dates Card #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold"><i class="bi bi-calendar me-1"></i> Timeline</div>
+      <div class="card-body">
+        <p class="mb-1">
+          <strong>Created:</strong><br>
+          <small class="text-muted">{{ object.created_at|date:"F j, Y g:i a" }}</small>
+        </p>
+        <p class="mb-1">
+          <strong>Updated:</strong><br>
+          <small class="text-muted">{{ object.updated_at|date:"F j, Y g:i a" }}</small>
+        </p>
+        {% if object.contract_date %}
+        <p class="mb-0">
+          <strong>Contract:</strong><br>
+          <small class="text-muted">{{ object.contract_date|date:"F j, Y" }}</small>
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Quick Stats Card #}
+    <div class="card">
+      <div class="card-header fw-semibold"><i class="bi bi-graph-up me-1"></i> Quick Stats</div>
+      <div class="card-body">
+        <div class="mb-2">
+          <small class="text-muted">Total Notes</small>
+          <p class="mb-0 fs-5 fw-bold">{{ notes|length }}</p>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Follow-ups</small>
+          <p class="mb-0 fs-5 fw-bold">{{ followups|length }}</p>
+        </div>
+        <div>
+          <small class="text-muted">Actions Logged</small>
+          <p class="mb-0 fs-5 fw-bold">{{ logs|length }}</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 {% endblock %}

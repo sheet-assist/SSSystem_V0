@@ -1,8 +1,23 @@
 from django.urls import path
-from django.views.generic import TemplateView
+
+from . import views
 
 app_name = "scraper"
 
 urlpatterns = [
-    path("dashboard/", TemplateView.as_view(template_name="scraper/dashboard.html"), name="dashboard"),
+    # Dashboard
+    path("dashboard/", views.ScraperDashboardView.as_view(), name="dashboard"),
+    
+    # Trigger new scrape
+    path("trigger/", views.ScrapeTriggerView.as_view(), name="trigger"),
+    
+    # Job detail and logs
+    path("jobs/<int:pk>/", views.ScrapeJobDetailView.as_view(), name="job_detail"),
+    path("jobs/<int:job_pk>/logs/", views.ScrapeLogListView.as_view(), name="logs"),
+    
+    # Progress API (JSON)
+    path("jobs/<int:pk>/progress/", views.ScrapeJobProgressView.as_view(), name="job_progress"),
+    
+    # Run pending job
+    path("jobs/<int:pk>/run/", views.ScrapeJobRunView.as_view(), name="job_run"),
 ]

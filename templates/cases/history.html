@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Case History - {{ object.case_number }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'cases:list' %}">Cases</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'cases:detail' object.pk %}">{{ object.case_number|default:object.pk }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">History</li>
+  </ol>
+</nav>
+
+<div class="row">
+  <div class="col-lg-10">
+    <div class="card">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-clock-history me-1"></i> Action History for Case {{ object.case_number|default:object.pk }}
+      </div>
+      <div class="card-body">
+        {% if logs %}
+          <div class="timeline">
+            {% for log in logs %}
+            <div class="timeline-item mb-4">
+              <div class="d-flex">
+                <div class="me-3">
+                  <div class="badge bg-primary rounded-pill p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                    {% if log.action_type == 'created' %}
+                      <i class="bi bi-plus-lg"></i>
+                    {% elif log.action_type == 'updated' %}
+                      <i class="bi bi-pencil"></i>
+                    {% elif log.action_type == 'status_changed' %}
+                      <i class="bi bi-arrow-repeat"></i>
+                    {% elif log.action_type == 'note_added' %}
+                      <i class="bi bi-sticky"></i>
+                    {% elif log.action_type == 'followup_added' %}
+                      <i class="bi bi-calendar-check"></i>
+                    {% elif log.action_type == 'followup_completed' %}
+                      <i class="bi bi-check-lg"></i>
+                    {% elif log.action_type == 'converted_from_prospect' %}
+                      <i class="bi bi-box-arrow-in-right"></i>
+                    {% else %}
+                      <i class="bi bi-info-lg"></i>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="flex-grow-1">
+                  <h6 class="mb-1">
+                    <span class="badge bg-info">{{ log.get_action_type_display }}</span>
+                  </h6>
+                  <p class="mb-1 text-break">{{ log.description }}</p>
+                  <small class="text-muted">
+                    {% if log.user %}
+                      By <strong>{{ log.user.get_full_name|default:log.user.username }}</strong>
+                    {% else %}
+                      <em>System</em>
+                    {% endif %}
+                    · {{ log.created_at|date:"F j, Y g:i a" }}
+                  </small>
+                  {% if log.metadata %}
+                  <div class="mt-2">
+                    <details class="text-muted">
+                      <summary style="cursor: pointer;">View Details</summary>
+                      <pre class="mt-2 bg-light p-2 rounded text-muted" style="font-size: 0.85rem; overflow-x: auto;">{{ log.metadata|safe }}</pre>
+                    </details>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+            <p class="mt-3">No action history yet.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

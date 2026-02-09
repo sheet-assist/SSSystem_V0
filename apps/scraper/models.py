@@ -30,6 +30,12 @@ class ScrapeJob(models.Model):
     prospects_qualified = models.PositiveIntegerField(default=0)
     prospects_disqualified = models.PositiveIntegerField(default=0)
     
+    # Progress tracking
+    total_prospects_found = models.PositiveIntegerField(default=0)
+    prospects_processed = models.PositiveIntegerField(default=0)
+    progress_percent = models.PositiveIntegerField(default=0)
+    progress_message = models.CharField(max_length=255, blank=True, default='')
+    
     error_message = models.TextField(blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -41,6 +47,17 @@ class ScrapeJob(models.Model):
 
     def __str__(self):
         return f"ScrapeJob {self.county} {self.job_type} on {self.target_date} ({self.status})"
+    
+    def update_progress(self, processed, total, message=""):
+        """Update progress metrics."""
+        self.prospects_processed = processed
+        self.total_prospects_found = total
+        if total > 0:
+            self.progress_percent = int((processed / total) * 100)
+        else:
+            self.progress_percent = 0
+        self.progress_message = message
+        self.save(update_fields=['prospects_processed', 'total_prospects_found', 'progress_percent', 'progress_message'])
 
 
 class ScrapeLog(models.Model):

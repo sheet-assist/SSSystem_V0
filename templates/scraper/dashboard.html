@@ -1,6 +1,191 @@
 {% extends "base.html" %}
-{% block title %}Coming Soon{% endblock %}
+
+{% block title %}Scraper Dashboard{% endblock %}
+
 {% block content %}
-<h2>Coming Soon</h2>
-<p class="text-muted">This section is under construction.</p>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">Scraper Dashboard</h2>
+  <a href="{% url 'scraper:trigger' %}" class="btn btn-primary">
+    <i class="bi bi-play-circle"></i> Trigger New Scrape
+  </a>
+</div>
+
+{# Statistics Cards #}
+<div class="row mb-4">
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card">
+      <div class="card-body text-center">
+        <h6 class="card-title text-muted">Total Jobs</h6>
+        <h2 class="mb-0">{{ total_jobs }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card">
+      <div class="card-body text-center">
+        <h6 class="card-title text-muted">Pending</h6>
+        <h2 class="mb-0 text-warning">{{ pending_jobs }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card">
+      <div class="card-body text-center">
+        <h6 class="card-title text-muted">Running</h6>
+        <h2 class="mb-0 text-info">{{ running_jobs }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card">
+      <div class="card-body text-center">
+        <h6 class="card-title text-muted">Prospects Created</h6>
+        <h2 class="mb-0 text-success">{{ total_prospects_created }}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Jobs Table #}
+<div class="card">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-list-task me-1"></i> Recent Scrape Jobs
+  </div>
+  <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Job ID</th>
+          <th>County</th>
+          <th>Type</th>
+          <th>Target Date</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Results</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr>
+          <td><strong>#{{ job.pk }}</strong></td>
+          <td>{{ job.county.name }}, {{ job.county.state.abbreviation }}</td>
+          <td>
+            {% if job.job_type == 'TD' %}
+              <span class="badge bg-info text-dark">Tax Deed</span>
+            {% elif job.job_type == 'TL' %}
+              <span class="badge bg-warning text-dark">Tax Lien</span>
+            {% elif job.job_type == 'SS' %}
+              <span class="badge bg-secondary">Sheriff Sale</span>
+            {% elif job.job_type == 'MF' %}
+              <span class="badge bg-danger">Mortgage Foreclosure</span>
+            {% endif %}
+          </td>
+          <td>{{ job.target_date|date:"m/d/Y" }}</td>
+          <td>
+            {% if job.status == 'pending' %}
+              <span class="badge bg-secondary">Pending</span>
+            {% elif job.status == 'running' %}
+              <div class="d-flex align-items-center gap-2">
+                <div style="flex: 1; min-width: 120px;">
+                  <div class="progress" style="height: 20px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
+                         role="progressbar" 
+                         style="width: {{ job.progress_percent }}%;" 
+                         aria-valuenow="{{ job.progress_percent }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                    </div>
+                  </div>
+                </div>
+                <small class="text-muted" style="white-space: nowrap;">{{ job.progress_percent }}%</small>
+              </div>
+            {% elif job.status == 'completed' %}
+              <span class="badge bg-success">Completed</span>
+            {% elif job.status == 'failed' %}
+              <span class="badge bg-danger">Failed</span>
+            {% endif %}
+          </td>
+          <td><small class="text-muted">{{ job.created_at|date:"m/d/Y H:i" }}</small></td>
+          <td>
+            <small>
+              Created: <strong>{{ job.prospects_created }}</strong><br>
+              Qualified: <strong>{{ job.prospects_qualified }}</strong>
+            </small>
+          </td>
+          <td>
+            <div class="d-flex gap-2">
+              {% if job.status == 'pending' %}
+                <form method="post" action="{% url 'scraper:job_run' job.pk %}" style="display:inline;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-success" title="Start this scrape job">
+                    <i class="bi bi-play-fill"></i> Run
+                  </button>
+                </form>
+              {% endif %}
+              <a href="{% url 'scraper:job_detail' job.pk %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i> View
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-4">No scrape jobs yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% include "includes/pagination.html" %}
+
+<script>
+// Poll running jobs for progress updates
+function pollJobProgress() {
+  // Find all rows with running status
+  const rows = document.querySelectorAll('table tbody tr');
+  
+  rows.forEach(row => {
+    const statusCell = row.querySelector('td:nth-child(5)');
+    const progressBar = statusCell?.querySelector('.progress-bar');
+    
+    // Only poll if row has a progress bar (running status)
+    if (progressBar) {
+      const jobId = row.querySelector('td:first-child strong').textContent.replace('#', '');
+      const progressUrl = `/scraper/jobs/${jobId}/progress/`;
+      
+      fetch(progressUrl)
+        .then(response => response.json())
+        .then(data => {
+          // Update progress bar
+          progressBar.style.width = data.progress_percent + '%';
+          progressBar.setAttribute('aria-valuenow', data.progress_percent);
+          
+          // Update percentage text
+          const percentText = statusCell.querySelector('small');
+          if (percentText) {
+            percentText.textContent = data.progress_percent + '%';
+          }
+          
+          // If job completed/failed, reload the page
+          if (data.status === 'completed' || data.status === 'failed') {
+            setTimeout(() => location.reload(), 1000);
+          }
+        })
+        .catch(err => console.log('Error polling job ' + jobId + ':', err));
+    }
+  });
+}
+
+// Start polling if there are any running jobs
+const runningJobsCount = document.querySelectorAll('.progress-bar').length;
+if (runningJobsCount > 0) {
+  // Initial poll immediately
+  pollJobProgress();
+  // Then poll every 2 seconds
+  setInterval(pollJobProgress, 2000);
+}
+</script>
 {% endblock %}

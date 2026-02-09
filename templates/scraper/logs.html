@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - Scrape Job {{ job.pk }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'scraper:dashboard' %}">Scraper</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'scraper:job_detail' job.pk %}">Job {{ job.pk }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Logs</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">Scrape Job #{{ job.pk }} — Logs</h2>
+  <a href="{% url 'scraper:job_detail' job.pk %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Back to Job
+  </a>
+</div>
+
+{# Filter Form #}
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label mb-1">Filter by Level</label>
+        <select name="level" class="form-select form-select-sm">
+          <option value="">All Levels</option>
+          <option value="info" {% if level_filter == 'info' %}selected{% endif %}>Info</option>
+          <option value="warning" {% if level_filter == 'warning' %}selected{% endif %}>Warning</option>
+          <option value="error" {% if level_filter == 'error' %}selected{% endif %}>Error</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-sm btn-primary" type="submit">
+          <i class="bi bi-funnel"></i> Filter
+        </button>
+        <a href="{% url 'scraper:logs' job.pk %}" class="btn btn-sm btn-outline-secondary">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# Logs Table #}
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width: 100px;">Level</th>
+          <th>Message</th>
+          <th style="width: 180px;">Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>
+            {% if log.level == 'info' %}
+              <span class="badge bg-info">Info</span>
+            {% elif log.level == 'warning' %}
+              <span class="badge bg-warning text-dark">Warning</span>
+            {% elif log.level == 'error' %}
+              <span class="badge bg-danger">Error</span>
+            {% endif %}
+          </td>
+          <td class="text-break">
+            <small>{{ log.message }}</small>
+            {% if log.raw_html %}
+            <div class="mt-2">
+              <details>
+                <summary style="cursor: pointer; font-size: 0.85rem; color: #999;">
+                  <i class="bi bi-code"></i> View HTML
+                </summary>
+                <pre class="bg-light p-2 rounded mt-2 text-muted" style="font-size: 0.75rem; overflow-x: auto;">{{ log.raw_html|truncatewords:100 }}</pre>
+              </details>
+            </div>
+            {% endif %}
+          </td>
+          <td><small class="text-muted">{{ log.created_at|date:"m/d/Y H:i:s" }}</small></td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="text-center text-muted py-4">No logs found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% include "includes/pagination.html" %}
+{% endblock %}

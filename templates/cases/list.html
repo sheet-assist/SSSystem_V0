@@ -1,6 +1,91 @@
 {% extends "base.html" %}
-{% block title %}Coming Soon{% endblock %}
+
+{% block title %}{{ page_title|default:"Cases" }}{% endblock %}
+
 {% block content %}
-<h2>Coming Soon</h2>
-<p class="text-muted">This section is under construction.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">{{ page_title|default:"Cases" }}</h2>
+</div>
+
+{# Filter form #}
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      {% for field in filter.form %}
+      <div class="col-auto">
+        <label class="form-label form-label-sm mb-1">{{ field.label }}</label>
+        {{ field }}
+      </div>
+      {% endfor %}
+      <div class="col-auto">
+        <button class="btn btn-sm btn-primary" type="submit">
+          <i class="bi bi-funnel"></i> Filter
+        </button>
+        <a href="{% url 'cases:list' %}" class="btn btn-sm btn-outline-secondary ms-1">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# Results table #}
+<div class="table-responsive">
+  <table class="table table-striped table-hover align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>Case #</th>
+        <th>Type</th>
+        <th>Property Address</th>
+        <th>County</th>
+        <th>Status</th>
+        <th>Assigned To</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for case in case_list %}
+      <tr class="cursor-pointer" onclick="window.location='{% url 'cases:detail' case.pk %}';" style="cursor:pointer;">
+        <td><strong>{{ case.case_number|default:case.pk }}</strong></td>
+        <td>
+          {% if case.case_type == 'TD' %}
+            <span class="badge bg-info text-dark">Tax Deed</span>
+          {% elif case.case_type == 'TL' %}
+            <span class="badge bg-warning text-dark">Tax Lien</span>
+          {% elif case.case_type == 'SS' %}
+            <span class="badge bg-secondary">Sheriff Sale</span>
+          {% elif case.case_type == 'MF' %}
+            <span class="badge bg-danger">Mortgage Foreclosure</span>
+          {% else %}
+            <span class="badge bg-light text-dark">{{ case.case_type }}</span>
+          {% endif %}
+        </td>
+        <td>{{ case.property_address|default:"-" }}</td>
+        <td>{{ case.county.name|default:"-" }}, {{ case.county.state.abbreviation|default:"-" }}</td>
+        <td>
+          {% if case.status == 'active' %}
+            <span class="badge bg-success">Active</span>
+          {% elif case.status == 'monitoring' %}
+            <span class="badge bg-info text-dark">Monitoring</span>
+          {% elif case.status == 'follow_up' %}
+            <span class="badge bg-warning text-dark">Follow Up</span>
+          {% elif case.status == 'closed_won' %}
+            <span class="badge bg-success">Closed Won</span>
+          {% elif case.status == 'closed_lost' %}
+            <span class="badge bg-danger">Closed Lost</span>
+          {% else %}
+            <span class="badge bg-light text-dark">{{ case.status }}</span>
+          {% endif %}
+        </td>
+        <td>{% if case.assigned_to %}{{ case.assigned_to.get_full_name|default:case.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
+        <td>{{ case.created_at|date:"m/d/Y" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="text-center text-muted py-4">No cases found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include "includes/pagination.html" %}
 {% endblock %}

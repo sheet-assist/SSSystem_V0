@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Convert Prospect to Case{% endblock %}
+{% block title %}Add Note - Case {{ case.case_number }}{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'prospects:detail' prospect.pk %}">{{ prospect.case_number }}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Convert to Case</li>
+    <li class="breadcrumb-item"><a href="{% url 'cases:list' %}">Cases</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'cases:detail' case.pk %}">{{ case.case_number|default:case.pk }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Add Note</li>
   </ol>
 </nav>
 
@@ -14,15 +15,9 @@
   <div class="col-lg-8">
     <div class="card">
       <div class="card-header fw-semibold">
-        <i class="bi bi-box-arrow-in-right me-1"></i> Convert Prospect to Case
+        <i class="bi bi-sticky me-1"></i> Add Note to Case {{ case.case_number|default:case.pk }}
       </div>
       <div class="card-body">
-        <div class="alert alert-info mb-4">
-          <strong>Prospect:</strong> {{ prospect.case_number }}<br>
-          <strong>Type:</strong> {{ prospect.get_prospect_type_display }}<br>
-          <strong>County:</strong> {{ prospect.county.name }}, {{ prospect.county.state.abbreviation }}
-        </div>
-
         <form method="post">
           {% csrf_token %}
           {% for field in form %}
@@ -31,7 +26,7 @@
             {{ field }}
             {% if field.errors %}
             <div class="invalid-feedback d-block">
-              {% for error in field.errors %}{{ error }}<br>{% endfor %}
+              {% for error in field.errors %}{{ error }}{% endfor %}
             </div>
             {% endif %}
             {% if field.help_text %}
@@ -40,9 +35,9 @@
           </div>
           {% endfor %}
           <div class="d-flex justify-content-end gap-2">
-            <a href="{% url 'prospects:detail' prospect.pk %}" class="btn btn-outline-secondary">Cancel</a>
-            <button class="btn btn-success" type="submit">
-              <i class="bi bi-check-lg"></i> Create Case
+            <a href="{% url 'cases:detail' case.pk %}" class="btn btn-outline-secondary">Cancel</a>
+            <button class="btn btn-primary" type="submit">
+              <i class="bi bi-check-lg"></i> Save Note
             </button>
           </div>
         </form>
