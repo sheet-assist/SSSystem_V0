@@ -8,6 +8,10 @@ from datetime import datetime
 from playwright.sync_api import sync_playwright
 from .parsers import parse_calendar_page, normalize_prospect_data
 from .models import ScrapeJob, ScrapeLog
+from django.db import close_old_connections
+
+from asgiref.sync import async_to_sync, sync_to_async
+
 
 
 class RealtdmScraper:
@@ -26,14 +30,14 @@ class RealtdmScraper:
         else:
             return county_config.foreclosure_url or f"https://{county_config.slug}.realforeclose.com"
     
-    def log(self, level, message, raw_html=''):
-        """Create a ScrapeLog entry."""
-        ScrapeLog.objects.create(
-            job=self.job,
-            level=level,
-            message=message,
-            raw_html=raw_html[:5000] if raw_html else ''  # Truncate HTML
-        )
+    async def log(self, level, message, raw_html=''):
+        await sync_to_async(ScrapeLog.objects.create)(
+        job=self.job,
+        level=level,
+        message=message,
+        raw_html=raw_html
+    )
+
     
     def random_delay(self, min_sec=1, max_sec=3):
         """Random delay to avoid rate limiting."""
@@ -77,6 +81,7 @@ class RealtdmScraper:
                 for raw in raw_auctions:
                     try:
                         prospect = normalize_prospect_data(raw, auction_date, self.job.job_type)
+                       
                         prospects.append(prospect)
                     except Exception as e:
                         self.log('error', f'Failed to normalize auction {raw.get("auction_id")}: {str(e)}')
@@ -104,7 +109,7 @@ class RealtdmScraper:
         return prospects
 
 
-def run_scrape_job(job):
+def run_scrape_job(job_id):
     """
     Execute a scrape job: download, parse, create/update prospects, qualify, log results.
     """
@@ -113,6 +118,10 @@ def run_scrape_job(job):
     from apps.locations.models import County
     from django.utils import timezone
     
+    close_old_connections()
+
+    job = ScrapeJob.objects.get(pk=job_id)
+
     job.status = 'running'
     job.started_at = timezone.now()
     job.save()
@@ -125,7 +134,9 @@ def run_scrape_job(job):
         
         prospects_data = scraper.scrape_date(job.target_date)
         total_prospects = len(prospects_data)
-        
+        print("--------------------------------------------")
+        print("Total prospects found:", total_prospects)
+        print(prospects_data)
         if total_prospects == 0:
             job.status = 'completed'
             job.update_progress(0, 0, "No auctions found for this date")
@@ -176,7 +187,7 @@ def run_scrape_job(job):
                 else:
                     prospect_obj.qualification_status = 'disqualified'
                     disqualified += 1
-                
+                print("saving................................")
                 prospect_obj.save()
                 
                 # Update progress
@@ -187,6 +198,7 @@ def run_scrape_job(job):
                 )
                 
             except Exception as e:
+                print(f"Error processing prospect {prospect_data.get('case_number')}: {str(e)}" )
                 scraper.log('error', f'Failed to save prospect {prospect_data.get("case_number")}: {str(e)}')
                 job.update_progress(idx, total_prospects, f"Error processing prospect {idx}/{total_prospects}")
         

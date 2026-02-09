@@ -12,6 +12,7 @@ from apps.locations.models import County
 from .forms import ScrapeTriggerForm
 from .models import ScrapeJob, ScrapeLog
 from .engine import run_scrape_job
+import threading    
 
 User = get_user_model()
 
@@ -242,19 +243,21 @@ class ScrapeJobRunView(AdminRequiredMixin, View):
             job.started_at = timezone.now()
             job.save(update_fields=["status", "started_at"])
 
-            run_scrape_job(job)
+            # 🔥 RUN IN BACKGROUND THREAD
+            t = threading.Thread(target=run_scrape_job, args=(job.pk,))
+            t.daemon = True
+            t.start()
 
-            job.status = "completed"
-            job.completed_at = timezone.now()
-            job.save(update_fields=["status", "completed_at"])
-
-            messages.success(request, f"Scrape job #{job.pk} completed successfully!")
+            messages.success(
+                request,
+                f"Scrape job #{job.pk} started in background."
+            )
 
         except Exception as e:
             job.status = "failed"
             job.error_message = str(e)
             job.save(update_fields=["status", "error_message"])
 
-            messages.error(request, f"Scrape job #{job.pk} failed: {str(e)}")
+            messages.error(request, f"Scrape job #{job.pk} failed to start: {str(e)}")
 
         return redirect("scraper:job_detail", pk=job.pk)
